@@ -8,12 +8,16 @@
 namespace fast_chess {
 
 std::atomic_bool Logger::should_log_ = false;
-std::ofstream Logger::log_;
+std::unique_ptr<std::ostream> Logger::log_ = nullptr;
 std::mutex Logger::log_mutex_;
 Logger::Level Logger::level_ = Logger::Level::WARN;
 
 void Logger::openFile(const std::string &file) {
-    Logger::log_.open(file, std::ios::app);
+    if (file == "stdout") {
+        Logger::log_ = std::make_unique<std::ostream>(std::cout.rdbuf());
+    } else {
+        Logger::log_ = std::make_unique<std::ofstream>(file, std::ios::app);
+    }
     Logger::should_log_ = true;
 }
 
@@ -31,7 +35,7 @@ void Logger::writeToEngine(const std::string &msg, const std::string &name) {
 
     // Acquire the lock
     const std::lock_guard<std::mutex> lock(log_mutex_);
-    log_ << ss.str() << std::flush;
+    *log_ << ss.str() << std::flush;
 }
 
 void Logger::readFromEngine(const std::string &msg, const std::string &name, bool err) {
@@ -46,7 +50,7 @@ void Logger::readFromEngine(const std::string &msg, const std::string &name, boo
 
     // Acquire the lock
     const std::lock_guard<std::mutex> lock(log_mutex_);
-    log_ << ss.str() << std::flush;
+    *log_ << ss.str() << std::flush;
 }
 
 }  // namespace fast_chess
